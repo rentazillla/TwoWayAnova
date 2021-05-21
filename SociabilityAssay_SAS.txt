@@ -1,0 +1,51 @@
+/* Comments on code are written as such */
+/* Loading our data */
+
+proc import datafile="/home/u58471033/sasuser.v94/soc_csv.csv"
+     out=Behavior
+     dbms=csv
+     replace;
+     getnames=yes;
+run;
+
+/* show graphics */
+
+ods noproctitle;
+ods graphics / imagemap=on;
+
+/* run GLM for ANOVA */
+
+proc glm data=WORK.BEHAVIOR;
+	class Drug1 Drug2 Hours;
+	model PercentImmobile=Drug1 Drug2 Hours Drug1*Drug2 Drug1*Hours Drug2*Hours 
+		Drug1*Drug2*Hours / ss1 ss3;
+	lsmeans Drug1 Drug2 Hours / adjust=tukey pdiff=all alpha=0.05 cl;
+	output out=work.Nwayanova_Behavior p=predicted lcl=lcl ucl=ucl lclm=lclm 
+		uclm=uclm r=residual student=student rstudent=rstudent stdr=stdr stdi=stdi 
+		stdp=stdp / alpha=0.05;
+quit;
+
+/* bar chart */
+
+ods graphics / reset width=6.4in height=4.8in imagemap;
+
+proc sgplot data=WORK.BEHAVIOR;
+	vbar Hours / response=PercentImmobile group=Drugs groupdisplay=cluster 
+		limits=both limitstat=stderr stat=mean;
+	xaxis label="Hours";
+	yaxis grid label="Percent";
+run;
+
+ods graphics / reset;
+
+/* multiple comparison */
+
+ods noproctitle;
+ods graphics / imagemap=on;
+
+proc genmod data=WORK.BEHAVIOR plots=(predicted resraw(index) stdreschi(index) 
+		);
+	class Hours Drugs / param=glm;
+	model PercentImmobile=Hours Drugs Hours*Drugs / dist=normal;
+	lsmeans Hours Drugs Hours*Drugs / adjust=tukey pdiff=all alpha=0.05 cl;
+run;
